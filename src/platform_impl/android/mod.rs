@@ -151,12 +151,15 @@ pub struct EventLoop<T: 'static> {
     cause: StartCause,
     ignore_volume_keys: bool,
     combining_accent: Option<char>,
+    input_event_listener: Option<&'static dyn crate::platform::android::AndroidInputEventListener>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub(crate) struct PlatformSpecificEventLoopAttributes {
     pub(crate) android_app: Option<AndroidApp>,
     pub(crate) ignore_volume_keys: bool,
+    pub(crate) input_event_listener:
+        Option<&'static dyn crate::platform::android::AndroidInputEventListener>,
 }
 
 impl Default for PlatformSpecificEventLoopAttributes {
@@ -164,6 +167,7 @@ impl Default for PlatformSpecificEventLoopAttributes {
         Self {
             android_app: Default::default(),
             ignore_volume_keys: true,
+            input_event_listener: None,
         }
     }
 }
@@ -201,6 +205,7 @@ impl<T: 'static> EventLoop<T> {
             cause: StartCause::Init,
             ignore_volume_keys: attributes.ignore_volume_keys,
             combining_accent: None,
+            input_event_listener: attributes.input_event_listener,
         })
     }
 
@@ -322,8 +327,12 @@ impl<T: 'static> EventLoop<T> {
         // Process input events
         match android_app.input_events_iter() {
             Ok(mut input_iter) => loop {
-                let read_event =
-                    input_iter.next(|event| self.handle_input_event(&android_app, event, callback));
+                let read_event = input_iter.next(|event| {
+                    if let Some(listener) = self.input_event_listener {
+                        listener.on_input_event(event);
+                    }
+                    self.handle_input_event(&android_app, event, callback)
+                });
 
                 if !read_event {
                     break;

@@ -1,9 +1,15 @@
+use std::fmt::Debug;
+
 use crate::{
     event_loop::{EventLoop, EventLoopBuilder, EventLoopWindowTarget},
     window::{Window, WindowBuilder},
 };
 
 use android_activity::{AndroidApp, ConfigurationRef, Rect};
+
+pub trait AndroidInputEventListener: Debug {
+    fn on_input_event(&self, event: &android_activity::input::InputEvent<'_>);
+}
 
 /// Additional methods on [`EventLoop`] that are specific to Android.
 pub trait EventLoopExtAndroid {}
@@ -47,6 +53,12 @@ pub trait EventLoopBuilderExtAndroid {
     ///
     /// Default is to let the operating system handle the volume keys
     fn handle_volume_keys(&mut self) -> &mut Self;
+
+    // TODO:fornwall
+    fn with_input_event_listener(
+        &mut self,
+        listener: &'static mut dyn AndroidInputEventListener,
+    ) -> &mut Self;
 }
 
 impl<T> EventLoopBuilderExtAndroid for EventLoopBuilder<T> {
@@ -57,6 +69,15 @@ impl<T> EventLoopBuilderExtAndroid for EventLoopBuilder<T> {
 
     fn handle_volume_keys(&mut self) -> &mut Self {
         self.platform_specific.ignore_volume_keys = false;
+        self
+    }
+
+    // TODO:fornwall
+    fn with_input_event_listener(
+        &mut self,
+        listener: &'static mut dyn AndroidInputEventListener,
+    ) -> &mut Self {
+        self.platform_specific.input_event_listener = Some(listener);
         self
     }
 }
