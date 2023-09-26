@@ -11,7 +11,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use android_activity::input::{InputEvent, KeyAction, Keycode, MotionAction};
+use android_activity::input::{Axis, InputEvent, KeyAction, Keycode, MotionAction, Source};
 use android_activity::{
     AndroidApp, AndroidAppWaker, ConfigurationRef, InputStatus, MainEvent, Rect,
 };
@@ -394,7 +394,30 @@ impl<T: 'static> EventLoop<T> {
                         Some(event::TouchPhase::Started)
                     }
                     MotionAction::Up | MotionAction::PointerUp => Some(event::TouchPhase::Ended),
-                    MotionAction::Move => Some(event::TouchPhase::Moved),
+                    MotionAction::Move => {
+                        if motion_event.source() == Source::Joystick
+                            && motion_event.pointer_count() == 1
+                        {
+                            let pointer = motion_event.pointer_at_index(0);
+                            let event = event::Event::WindowEvent {
+                                window_id,
+                                event: event::WindowEvent::AxisUpdate {
+                                    device_id,
+                                    values: [
+                                        pointer.axis_value(Axis::HatX),
+                                        pointer.axis_value(Axis::HatY),
+                                        pointer.axis_value(Axis::X),
+                                        pointer.axis_value(Axis::Y),
+                                        pointer.axis_value(Axis::Z),
+                                        pointer.axis_value(Axis::Rz),
+                                    ],
+                                },
+                            };
+                            callback(event, self.window_target());
+                            return input_status;
+                        }
+                        Some(event::TouchPhase::Moved)
+                    }
                     MotionAction::Cancel => Some(event::TouchPhase::Cancelled),
                     _ => {
                         None // TODO mouse events

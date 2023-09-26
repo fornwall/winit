@@ -483,6 +483,12 @@ pub enum WindowEvent {
         value: f64,
     },
 
+    // TODO:
+    AxisUpdate {
+        device_id: DeviceId,
+        values: [f32; 6],
+    },
+
     /// Touch event has been received
     ///
     /// ## Platform-specific
